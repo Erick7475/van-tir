@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cálculo de VAN y RIT</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        form {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #resultados {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        p {
+            font-size: 18px;
+        }
+
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cálculo de VAN y RIT</h1>
+    
+    <form id="vanRitForm">
+        <label for="inversionInicial">Inversión Inicial:</label>
+        <input type="number" step="0.01" id="inversionInicial" required placeholder="Ej: 10000.50">
+
+        <label for="tasaDescuento">Tasa de Descuento (k):</label>
+        <input type="number" step="0.01" id="tasaDescuento" required placeholder="Ej: 0.1 (10%)">
+
+        <h3>Flujos de Caja para 5 años:</h3>
+        <label for="flujo1">Año 1:</label>
+        <input type="number" step="0.01" id="flujo1" required placeholder="Ej: 2000.10">
+        <label for="flujo2">Año 2:</label>
+        <input type="number" step="0.01" id="flujo2" required placeholder="Ej: 2500.20">
+        <label for="flujo3">Año 3:</label>
+        <input type="number" step="0.01" id="flujo3" required placeholder="Ej: 3000.30">
+        <label for="flujo4">Año 4:</label>
+        <input type="number" step="0.01" id="flujo4" required placeholder="Ej: 3500.40">
+        <label for="flujo5">Año 5:</label>
+        <input type="number" step="0.01" id="flujo5" required placeholder="Ej: 4000.50">
+
+        <button type="submit">Calcular VAN y RIT</button>
+    </form>
+
+    <div id="resultados">
+        <p id="vanResult">VAN: </p>
+        <p id="ritResult">RIT: </p>
+        <p id="aproximacionRit">Aproximación RIT: </p>
+        <p id="errorMessage" class="error"></p>
+    </div>
+
+    <script>
+        document.getElementById("vanRitForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            // Limpiar mensaje de error
+            document.getElementById("errorMessage").innerText = "";
+
+            // Obtener los valores del formulario
+            const inversionInicial = parseFloat(document.getElementById("inversionInicial").value);
+            const tasaDescuento = parseFloat(document.getElementById("tasaDescuento").value);
+            const flujos = [
+                parseFloat(document.getElementById("flujo1").value),
+                parseFloat(document.getElementById("flujo2").value),
+                parseFloat(document.getElementById("flujo3").value),
+                parseFloat(document.getElementById("flujo4").value),
+                parseFloat(document.getElementById("flujo5").value)
+            ];
+
+            // Validar que todos los campos tengan valores válidos
+            if (isNaN(inversionInicial) || isNaN(tasaDescuento) || flujos.some(isNaN)) {
+                document.getElementById("errorMessage").innerText = "Por favor, asegúrate de ingresar todos los valores correctamente.";
+                return;
+            }
+
+            // Calcular VAN
+            let van = -inversionInicial;
+            for (let t = 0; t < flujos.length; t++) {
+                van += flujos[t] / Math.pow(1 + tasaDescuento, t + 1);
+            }
+            document.getElementById("vanResult").innerText = "VAN: $" + van.toFixed(2);
+
+            // Calcular RIT (búsqueda iterativa)
+            const calcularRIT = () => {
+                let k = 0.01;
+                let precision = 0.0001;
+                while (k < 1) {
+                    let vanRit = -inversionInicial;
+                    for (let t = 0; t < flujos.length; t++) {
+                        vanRit += flujos[t] / Math.pow(1 + k, t + 1);
+                    }
+                    if (Math.abs(vanRit) < precision) {
+                        return k * 100;
+                    }
+                    k += 0.0001;
+                }
+                return "No encontrado";
+            };
+            
+            const rit = calcularRIT();
+            document.getElementById("ritResult").innerText = "RIT: " + rit + "%";
+
+            // Aproximación del RIT
+            const aproximarRIT = () => {
+                let tasas = [5, 10, 15, 20, 25, 30]; // Porcentajes para aproximar
+                let aproximacion = null;
+
+                tasas.forEach((tasa) => {
+                    let vanAproximado = -inversionInicial;
+                    let tasaDecimal = tasa / 100;
+                    for (let t = 0; t < flujos.length; t++) {
+                        vanAproximado += flujos[t] / Math.pow(1 + tasaDecimal, t + 1);
+                    }
+
+                    if (aproximacion === null || Math.abs(vanAproximado) < Math.abs(aproximacion.van)) {
+                        aproximacion = { tasa, van: vanAproximado };
+                    }
+                });
+
+                return aproximacion.tasa;
+            };
+
+            const aproximacionRit = aproximarRIT();
+            document.getElementById("aproximacionRit").innerText = "Aproximación RIT: Alrededor del " + aproximacionRit + "%";
+        });
+    </script>
+</body>
+</html>
